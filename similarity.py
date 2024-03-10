@@ -5,11 +5,9 @@ import psycopg2
 import numpy as np
 import pgvector
 from pgvector.psycopg2 import register_vector
-# Sample data
-df = pd.read_csv(r"C:\Users\Admin\harini\example.csv") 
-data = df[["Domain", "Category_Area", "Residing_Country", "Professional_Certification", 
-          "spoken_language","Skillset_score"]]
-
+from psycopg2.extensions import adapt, register_adapter
+ 
+n_value=int(input())
 conn = psycopg2.connect(
     host="aws-0-ap-southeast-1.pooler.supabase.com",
     database="postgres",
@@ -21,16 +19,12 @@ cur = conn.cursor()
 # Register the vector type with psycopg2
 register_vector(conn)
 
-# Load SBERT model
-sbert_model = SentenceTransformer('distilbert-base-nli-mean-tokens')
-conn.commit()
-for index, row in data.iterrows():
-    text = f"{row['Domain']} {row['Category_Area']}  {row['Residing_Country']}  {row['Professional_Certification']}{row['spoken_language']}"
-    embedding = sbert_model.encode([text]) # Embedding for a single text
-    cur.execute("SELECT id FROM embeddings ORDER BY embedding <-> %s LIMIT 5",(np.array(embedding)))
-    conn.commit()
+cur.execute("SELECT embedding FROM embeddings WHERE id = %s", (n_value,))
+vector_data = cur.fetchone()
+cur.execute("SELECT id FROM embeddings ORDER BY embedding <-> (%s) LIMIT 5 ",(np.array(vector_data)))
 result=cur.fetchall()
 print(result)
+conn.commit()
 cur.close()
 conn.close()  
 
